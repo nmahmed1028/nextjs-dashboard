@@ -6,23 +6,42 @@ import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-const FormSchema = z.object({
+const FormSchema = z.object({ //can validate form data
     id: z.string(), 
-    customerId: z.string(), 
-    amount: z.coerce.number(), //change from string to number while validating type
-    status: z.enum(['pending', 'paid']), 
+    customerId: z.string({invalid_type_error: 'Please select a customer.'}), 
+    amount: z.coerce.number().gt(0, { message: 'Please enter an amount greater than 0'}), //change from string to number while validating type, default 0
+    status: z.enum(['pending', 'paid'], {invalid_type_error: 'Please select an invoice status'}),
     date: z.string(),
 });
 
 const CreateInvoice = FormSchema.omit({id: true, date: true});
 const UpdateInvoice = FormSchema.omit({id: true, date: true});
 
-export async function createInvoice(formData: FormData) {
-    const {customerId, amount, status} = CreateInvoice.parse({
+export type State = { //temporary until @types/react-dom updated
+    errors?: {
+        customerId?: string[];
+        amount?: string[];
+        status?: string[];
+    };
+    message?: string | null;
+};
+
+//prevState is state from useFormState
+export async function createInvoice(prevState: State, formData: FormData) {
+    const validatedFields = CreateInvoice.safeParse({
         customerId: formData.get('customerId'),
         amount: formData.get('amount'),
         status: formData.get('status'),
     });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing Fields. Failed to Create Invoice.',
+        };
+    }
+
+    const {customerId, amount, status} = validatedFields.data;
     const amountInCents = amount * 100; //convert to cents to avoid JS float errors
     const date = new Date().toISOString().split('T')[0]; //create new invoice creation date w/ format yyyy-mm-dd
     
@@ -39,13 +58,21 @@ export async function createInvoice(formData: FormData) {
     redirect('/dashboard/invoices'); //redirect user to invoices page after db updated
 }
 
-export async function updateInvoice(id: string, formData: FormData) {
-    const { customerId, amount, status } = UpdateInvoice.parse({
+export async function updateInvoice(id: string, prevState: State, formData: FormData) {
+    const validatedFields = UpdateInvoice.safeParse({ //used for form validation
         customerId: formData.get('customerId'),
         amount: formData.get('amount'),
         status: formData.get('status'),
     });
 
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Missing Fields. Failed to Update Invoice.',
+        };
+    }
+
+    const { customerId, amount, status} = validatedFields.data; //initialize the vars w/ data from validatedFields
     const amountInCents = amount * 100; //convert to cents to avoid JS float errors
     
     try {
@@ -63,7 +90,7 @@ export async function updateInvoice(id: string, formData: FormData) {
 }
 
 export async function deleteInvoice(id: string) {
-    throw new Error('Failed to Delete Invoice');
+    //throw new Error('Failed to Delete Invoice');
     try {
         await sql `DELETE FROM invoices WHERE id = ${id}`;
         revalidatePath('/dashboard/invoices');
