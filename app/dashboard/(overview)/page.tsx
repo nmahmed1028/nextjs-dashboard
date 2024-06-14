@@ -7,6 +7,11 @@ import { Suspense } from 'react';
 import { RevenueChartSkeleton, LatestInvoicesSkeleton, CardsSkeleton } from '@/app/ui/skeletons';
 //wrapper component has static SideNav show first then cards, creating a staggered effect
 import CardWrapper from '@/app/ui/dashboard/cards'; 
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Dashboard',
+  };
 
 export default async function Page() { //async --> allows use of await to fetch data
     //const revenue = await fetchRevenue(); //gets revenue from data file w/ SQL query

@@ -6,7 +6,12 @@ import { lusitana } from '@/app/ui/fonts';
 import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
 import { Suspense } from 'react';
 import { fetchInvoicesPages } from '@/app/lib/data'; //return total number of pages based on query
- 
+import { Metadata } from 'next';
+
+export const metadata: Metadata = { //overrides metadata in parent
+  title: 'Invoices',
+};
+
 export default async function Page(
   {searchParams,}: 
     {searchParams?: {query?: string; page?: string;};}
